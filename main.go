@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func checkerr(err error) {
@@ -24,6 +25,8 @@ type ShareFileInfo struct {
 }
 
 func shareDir(conn net.Conn, pathstr string) error {
+	// 绝对路径的前缀长度
+	preLen := len(pathstr)
 	err := filepath.Walk(pathstr, func(pathstr string, f os.FileInfo, err error) error {
 		if f == nil {
 			return err
@@ -40,7 +43,7 @@ func shareDir(conn net.Conn, pathstr string) error {
 		}
 
 		var shareFileInfo ShareFileInfo
-		shareFileInfo.Path = filepath.Dir(pathstr)
+		shareFileInfo.Path = filepath.Dir(pathstr)[preLen:]
 		shareFileInfo.Name = fileInfo.Name()
 		shareFileInfo.Size = fileInfo.Size()
 		data, _ := json.Marshal(shareFileInfo)
@@ -89,10 +92,16 @@ func shareDir(conn net.Conn, pathstr string) error {
 }
 
 func main() {
-	//命令行可以指定端口，防止端口被占用
+	dirpath := "."
 	port := "7000"
+
 	if len(os.Args) > 1 {
-		port = os.Args[1]
+		dirpath = strings.TrimSpace(os.Args[1])
+	}
+
+	//命令行可以指定端口，防止端口被占用
+	if len(os.Args) > 2 {
+		port = os.Args[2]
 	}
 
 	addr, err := net.ResolveTCPAddr("tcp4", ":"+port)
@@ -109,6 +118,6 @@ func main() {
 		if err != nil {
 			continue
 		}
-		go shareDir(conn, ".")
+		go shareDir(conn, dirpath)
 	}
 }
